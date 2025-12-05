@@ -61,6 +61,7 @@ class Camp {
   String note;
   List<ChecklistItem> items;
   List<String> photoPaths;
+  List<String> participants;
 
   Camp({
     required this.id,
@@ -70,6 +71,7 @@ class Camp {
     required this.note,
     required this.items,
     required this.photoPaths,
+    required this.participants,
   });
 
   Camp copyWith({
@@ -80,6 +82,7 @@ class Camp {
     String? note,
     List<ChecklistItem>? items,
     List<String>? photoPaths,
+    List<String>? participants,
   }) {
     return Camp(
       id: id ?? this.id,
@@ -89,6 +92,7 @@ class Camp {
       note: note ?? this.note,
       items: items ?? this.items,
       photoPaths: photoPaths ?? this.photoPaths,
+      participants: participants ?? this.participants,
     );
   }
 
@@ -106,6 +110,10 @@ class Camp {
           ?.map((e) => e as String)
           .toList() ??
           [],
+      participants: (map['participants'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList() ??
+          [],
     );
   }
 
@@ -118,6 +126,7 @@ class Camp {
       'note': note,
       'items': items.map((e) => e.toMap()).toList(),
       'photoPaths': photoPaths,
+      'participants': participants,
     };
   }
 
