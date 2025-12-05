@@ -38,9 +38,10 @@ class _CampDetailScreenState extends State<CampDetailScreen> {
     widget.onUpdated(_camp);
   }
 
-  void _addItem() async {
-    final labelController = TextEditingController();
-    String category = '🎒 Diğer';
+  Future<void> _openItemEditor({ChecklistItem? item}) async {
+    final labelController = TextEditingController(text: item?.label ?? '');
+    final categoryController =
+        TextEditingController(text: item?.category ?? '🎒 Diğer');
 
     final categories = _camp.items
         .map((e) => e.category)
@@ -48,17 +49,11 @@ class _CampDetailScreenState extends State<CampDetailScreen> {
         .toList()
       ..sort();
 
-    if (categories.isEmpty) {
-      categories.add(category);
-    } else {
-      category = categories.first;
-    }
-
-    final result = await showDialog<bool>(
+    final saved = await showDialog<bool>(
       context: context,
       builder: (ctx) {
         return AlertDialog(
-          title: const Text('Yeni madde ekle'),
+          title: Text(item == null ? 'Yeni madde ekle' : 'Maddeyi düzenle'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -69,24 +64,32 @@ class _CampDetailScreenState extends State<CampDetailScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-              DropdownButtonFormField<String>(
-                value: category,
-                items: categories
-                    .map(
-                      (c) => DropdownMenuItem(
-                    value: c,
-                    child: Text(c),
-                  ),
-                )
-                    .toList(),
-                onChanged: (value) {
-                  if (value == null) return;
-                  category = value;
-                },
+              TextField(
+                controller: categoryController,
                 decoration: const InputDecoration(
                   labelText: 'Kategori',
+                  helperText: 'Yeni bir kategori yazabilir veya aşağıdan seçebilirsin',
                 ),
               ),
+              if (categories.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: categories
+                        .map(
+                          (c) => ChoiceChip(
+                            label: Text(c),
+                            selected: categoryController.text == c,
+                            onSelected: (_) => categoryController.text = c,
+                          ),
+                        )
+                        .toList(),
+                  ),
+                ),
+              ],
             ],
           ),
           actions: [
@@ -96,17 +99,25 @@ class _CampDetailScreenState extends State<CampDetailScreen> {
             ),
             ElevatedButton(
               onPressed: () {
-                if (labelController.text.trim().isEmpty) return;
+                if (labelController.text.trim().isEmpty ||
+                    categoryController.text.trim().isEmpty) {
+                  return;
+                }
                 Navigator.of(ctx).pop(true);
               },
-              child: const Text('Ekle'),
+              child: Text(item == null ? 'Ekle' : 'Kaydet'),
             ),
           ],
         );
       },
     );
 
-    if (result == true) {
+    if (saved != true) return;
+
+    final label = labelController.text.trim();
+    final category = categoryController.text.trim();
+
+    if (item == null) {
       final maxOrder = _camp.items.isEmpty
           ? 0
           : _camp.items
@@ -116,7 +127,7 @@ class _CampDetailScreenState extends State<CampDetailScreen> {
       final newItem = ChecklistItem(
         id: DateTime.now().microsecondsSinceEpoch.toString(),
         category: category,
-        label: labelController.text.trim(),
+        label: label,
         isChecked: false,
         sortOrder: maxOrder + 1,
       );
@@ -126,8 +137,22 @@ class _CampDetailScreenState extends State<CampDetailScreen> {
           items: [..._camp.items, newItem],
         );
       });
-      widget.onUpdated(_camp);
+    } else {
+      final updatedItem = item.copyWith(
+        label: label,
+        category: category,
+      );
+
+      setState(() {
+        _camp = _camp.copyWith(
+          items: _camp.items
+              .map((e) => e.id == item.id ? updatedItem : e)
+              .toList(),
+        );
+      });
     }
+
+    widget.onUpdated(_camp);
   }
 
   void _deleteItem(ChecklistItem item) {
@@ -136,6 +161,66 @@ class _CampDetailScreenState extends State<CampDetailScreen> {
         items: _camp.items.where((e) => e.id != item.id).toList(),
       );
     });
+    widget.onUpdated(_camp);
+  }
+
+  Future<void> _addOrEditParticipant({String? existing}) async {
+    final controller = TextEditingController(text: existing ?? '');
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: Text(existing == null ? 'Katılımcı ekle' : 'Katılımcıyı düzenle'),
+          content: TextField(
+            controller: controller,
+            decoration: const InputDecoration(
+              labelText: 'Ad soyad',
+              prefixIcon: Icon(Icons.person_outline),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('İptal'),
+            ),
+            FilledButton(
+              onPressed: () {
+                if (controller.text.trim().isEmpty) return;
+                Navigator.of(ctx).pop(true);
+              },
+              child: const Text('Kaydet'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (saved != true) return;
+
+    final name = controller.text.trim();
+
+    setState(() {
+      if (existing == null) {
+        _camp = _camp.copyWith(participants: [..._camp.participants, name]);
+      } else {
+        _camp = _camp.copyWith(
+          participants: _camp.participants
+              .map((p) => p == existing ? name : p)
+              .toList(),
+        );
+      }
+    });
+
+    widget.onUpdated(_camp);
+  }
+
+  void _removeParticipant(String name) {
+    setState(() {
+      _camp = _camp.copyWith(
+        participants: _camp.participants.where((p) => p != name).toList(),
+      );
+    });
+
     widget.onUpdated(_camp);
   }
 
@@ -206,64 +291,129 @@ class _CampDetailScreenState extends State<CampDetailScreen> {
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.only(bottom: 80),
-                children: grouped.entries.map((entry) {
-                  final category = entry.key;
-                  final items = entry.value;
-                  final doneCount =
-                      items.where((e) => e.isChecked).length;
+                children: [
+                  _buildParticipantsCard(),
+                  ...grouped.entries.map((entry) {
+                    final category = entry.key;
+                    final items = entry.value;
+                    final doneCount =
+                        items.where((e) => e.isChecked).length;
 
-                  return Card(
-                    margin: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      child: ExpansionTile(
-                        tilePadding: EdgeInsets.zero,
-                        childrenPadding: const EdgeInsets.only(bottom: 8),
-                        title: Text(category),
-                        subtitle: Text('$doneCount / ${items.length} tamamlandı'),
-                        trailing: const Icon(Icons.expand_more),
-                        children: items.map((item) {
-                          return Dismissible(
-                            key: ValueKey(item.id),
-                            background: Container(
-                              alignment: Alignment.centerRight,
-                              padding: const EdgeInsets.symmetric(horizontal: 16),
-                              decoration: BoxDecoration(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .error
-                                    .withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Icon(
-                                Icons.delete,
-                                color: Theme.of(context).colorScheme.error,
-                              ),
-                            ),
-                            direction: DismissDirection.endToStart,
-                            onDismissed: (_) => _deleteItem(item),
-                            child: CheckboxListTile(
-                              value: item.isChecked,
-                              onChanged: (val) => _toggleItem(item, val),
-                              title: Text(item.label),
-                            ),
-                          );
-                        }).toList(),
+                    return Card(
+                      margin: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
                       ),
-                    ),
-                  );
-                }).toList(),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        child: ExpansionTile(
+                          tilePadding: EdgeInsets.zero,
+                          childrenPadding: const EdgeInsets.only(bottom: 8),
+                          title: Text(category),
+                          subtitle: Text('$doneCount / ${items.length} tamamlandı'),
+                          trailing: const Icon(Icons.expand_more),
+                          children: items.map((item) {
+                            return Dismissible(
+                              key: ValueKey(item.id),
+                              background: Container(
+                                alignment: Alignment.centerRight,
+                                padding: const EdgeInsets.symmetric(horizontal: 16),
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .error
+                                      .withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Icon(
+                                  Icons.delete,
+                                  color: Theme.of(context).colorScheme.error,
+                                ),
+                              ),
+                              direction: DismissDirection.endToStart,
+                              onDismissed: (_) => _deleteItem(item),
+                              child: CheckboxListTile(
+                                value: item.isChecked,
+                                onChanged: (val) => _toggleItem(item, val),
+                                title: Text(item.label),
+                                secondary: IconButton(
+                                  icon: const Icon(Icons.edit_outlined),
+                                  onPressed: () => _openItemEditor(item: item),
+                                  tooltip: 'Düzenle',
+                                ),
+                                onLongPress: () => _openItemEditor(item: item),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    );
+                  }),
+                ],
               ),
             ),
           ],
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _addItem,
+        onPressed: _openItemEditor,
         child: const Icon(Icons.add),
+      ),
+    );
+  }
+
+  Widget _buildParticipantsCard() {
+    final theme = Theme.of(context);
+    return Card(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      child: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.group_outlined),
+                const SizedBox(width: 8),
+                Text(
+                  'Katılımcılar',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const Spacer(),
+                TextButton.icon(
+                  onPressed: () => _addOrEditParticipant(),
+                  icon: const Icon(Icons.person_add_alt_1_outlined),
+                  label: const Text('Ekle'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            if (_camp.participants.isEmpty)
+              Text(
+                'Henüz katılımcı eklenmedi',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurface.withOpacity(0.6),
+                ),
+              )
+            else
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: _camp.participants
+                    .map(
+                      (name) => InputChip(
+                        label: Text(name),
+                        onDeleted: () => _removeParticipant(name),
+                        onPressed: () =>
+                            _addOrEditParticipant(existing: name),
+                      ),
+                    )
+                    .toList(),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -304,6 +454,11 @@ class _CampDetailScreenState extends State<CampDetailScreen> {
                 label: _camp.note.isEmpty
                     ? 'Not eklenmedi'
                     : 'Not kaydedildi',
+              ),
+              const SizedBox(width: 8),
+              _InfoPill(
+                icon: Icons.group_outlined,
+                label: '${_camp.participants.length} katılımcı',
               ),
             ],
           ),

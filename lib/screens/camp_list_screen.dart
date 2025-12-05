@@ -106,6 +106,7 @@ class _CampListScreenState extends State<CampListScreen> {
         note: '',
         items: buildDefaultChecklist(),
         photoPaths: [],
+        participants: [],
       );
 
       setState(() {
