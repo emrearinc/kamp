@@ -341,7 +341,6 @@ class _CampDetailScreenState extends State<CampDetailScreen> {
                                   onPressed: () => _openItemEditor(item: item),
                                   tooltip: 'Düzenle',
                                 ),
-                                onLongPress: () => _openItemEditor(item: item),
                               ),
                             );
                           }).toList(),
