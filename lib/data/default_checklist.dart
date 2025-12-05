@@ -8,12 +8,20 @@ List<ChecklistItem> buildDefaultChecklist() {
   int order = 0;
   final items = <ChecklistItem>[];
 
-  void add(String category, String label, {bool checked = false}) {
+  void add(
+      String category,
+      String label, {
+        bool checked = false,
+        double quantity = 1,
+        QuantityUnit unit = QuantityUnit.piece,
+      }) {
     items.add(
       ChecklistItem(
         id: _uuid.v4(),
         category: category,
         label: label,
+        quantity: quantity,
+        unit: unit,
         isChecked: checked,
         sortOrder: order++,
       ),
@@ -23,8 +31,8 @@ List<ChecklistItem> buildDefaultChecklist() {
   const food = '🍽 Yiyecek – İçecek';
   add(food, 'Çekirdek', );
   add(food, 'Kola', );
-  add(food, 'Su (10L)');
-  add(food, 'Ekmek (2 adet)', );
+  add(food, 'Su', quantity: 10, unit: QuantityUnit.litre);
+  add(food, 'Ekmek', quantity: 2);
   add(food, 'Simit');
   add(food, 'Yumurta', );
   add(food, 'Zeytin');
@@ -32,9 +40,9 @@ List<ChecklistItem> buildDefaultChecklist() {
   add(food, 'Sucuk', );
   add(food, 'Cips', );
   add(food, 'Filtre kahve', );
-  add(food, 'Bira (4 adet)');
+  add(food, 'Bira', quantity: 4);
   add(food, 'Domates – salatalık', );
-  add(food, 'Yağ (küçük)', );
+  add(food, 'Yağ', quantity: 0.5, unit: QuantityUnit.litre);
   add(food, 'Çikolata / kuruyemiş');
 
   const kitchen = '🍳 Mutfak & Pişirme Ekipmanı';
