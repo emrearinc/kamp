@@ -269,11 +269,15 @@ class _CampDetailScreenState extends State<CampDetailScreen> {
   }
 
   Widget _buildHeader() {
-    final progress = _camp.items.isEmpty
-        ? 0.0
-        : (_camp.items.where((e) => e.isChecked).length /
-                _camp.items.length.toDouble())
-            .clamp(0, 1);
+    final completed = _camp.items.where((e) => e.isChecked).length;
+    final total = _camp.items.length;
+
+    // Ham progress double olsun
+    final double rawProgress =
+    total == 0 ? 0.0 : completed / total.toDouble();
+
+    // clamp num döndürür, o yüzden num olarak tut
+    final num clamped = rawProgress.clamp(0.0, 1.0);
 
     return Container(
       width: double.infinity,
@@ -290,13 +294,16 @@ class _CampDetailScreenState extends State<CampDetailScreen> {
             children: [
               _InfoPill(
                 icon: Icons.place_outlined,
-                label:
-                    _camp.location.isEmpty ? 'Konum belirtilmemiş' : _camp.location,
+                label: _camp.location.isEmpty
+                    ? 'Konum belirtilmemiş'
+                    : _camp.location,
               ),
               const SizedBox(width: 8),
               _InfoPill(
                 icon: Icons.note_outlined,
-                label: _camp.note.isEmpty ? 'Not eklenmedi' : 'Not kaydedildi',
+                label: _camp.note.isEmpty
+                    ? 'Not eklenmedi'
+                    : 'Not kaydedildi',
               ),
             ],
           ),
@@ -314,13 +321,14 @@ class _CampDetailScreenState extends State<CampDetailScreen> {
                         const Text('Tamamlanma durumu'),
                         const SizedBox(height: 8),
                         LinearProgressIndicator(
-                          value: progress,
+                          // BURASI ÖNEMLİ: num → double
+                          value: clamped.toDouble(),
                           minHeight: 8,
                           borderRadius: BorderRadius.circular(10),
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          '${(_camp.items.where((e) => e.isChecked).length)} / ${_camp.items.length} madde',
+                          '$completed / $total madde',
                           style: Theme.of(context)
                               .textTheme
                               .bodyMedium
@@ -342,6 +350,7 @@ class _CampDetailScreenState extends State<CampDetailScreen> {
       ),
     );
   }
+
 }
 
 class _InfoPill extends StatelessWidget {

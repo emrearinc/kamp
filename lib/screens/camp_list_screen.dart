@@ -1,11 +1,8 @@
-// lib/screens/camp_list_screen.dart
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:uuid/uuid.dart';
 
-import '../data/default_checklist.dart';
 import '../data/models.dart';
-import '../data/storage.dart';
+import '../data/default_checklist.dart';
 import 'camp_detail_screen.dart';
 
 class CampListScreen extends StatefulWidget {
@@ -18,125 +15,84 @@ class CampListScreen extends StatefulWidget {
 class _CampListScreenState extends State<CampListScreen> {
   final _uuid = const Uuid();
   final List<Camp> _camps = [];
-  final _storage = CampStorage();
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadCamps();
-  }
-
-  Future<void> _loadCamps() async {
-    final camps = await _storage.loadCamps();
-    setState(() {
-      _camps
-        ..clear()
-        ..addAll(camps);
-      _isLoading = false;
-    });
-  }
-
-  Future<void> _persist() => _storage.saveCamps(_camps);
 
   Future<void> _addCampDialog() async {
     final titleController = TextEditingController();
     final locationController = TextEditingController();
     DateTime selectedDate = DateTime.now();
 
-    final result = await showModalBottomSheet<bool>(
-      isScrollControlled: true,
+    final result = await showDialog<bool>(
       context: context,
       builder: (ctx) {
-        return Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(ctx).viewInsets.bottom + 16,
-            left: 16,
-            right: 16,
-            top: 16,
-          ),
-          child: StatefulBuilder(
-            builder: (ctx, setStateDialog) {
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: 36,
-                    height: 4,
-                    margin: const EdgeInsets.only(bottom: 16),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade300,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  TextField(
-                    controller: titleController,
-                    decoration: const InputDecoration(
-                      labelText: 'Kamp adı',
-                      prefixIcon: Icon(Icons.terrain_outlined),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: locationController,
-                    decoration: const InputDecoration(
-                      labelText: 'Konum',
-                      prefixIcon: Icon(Icons.place_outlined),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text('Tarih'),
-                          const SizedBox(height: 6),
-                          Text(
-                            '${selectedDate.day}.${selectedDate.month}.${selectedDate.year}',
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleMedium
-                                ?.copyWith(fontWeight: FontWeight.w700),
-                          ),
-                        ],
+        return StatefulBuilder(
+          builder: (ctx, setStateDialog) {
+            return AlertDialog(
+              title: const Text('Yeni Kamp'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: titleController,
+                      decoration: const InputDecoration(
+                        labelText: 'Kamp adı',
+                        prefixIcon: Icon(Icons.terrain_outlined),
                       ),
-                      const Spacer(),
-                      FilledButton.icon(
-                        onPressed: () async {
-                          final picked = await showDatePicker(
-                            context: ctx,
-                            initialDate: selectedDate,
-                            firstDate: DateTime(2020),
-                            lastDate: DateTime(2100),
-                          );
-                          if (picked != null) {
-                            setStateDialog(() {
-                              selectedDate = picked;
-                            });
-                          }
-                        },
-                        icon: const Icon(Icons.calendar_today_outlined, size: 18),
-                        label: const Text('Tarih seç'),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton(
-                      onPressed: () {
-                        if (titleController.text.trim().isEmpty) return;
-                        Navigator.of(ctx).pop(true);
-                      },
-                      child: const Text('Kamp oluştur'),
                     ),
-                  ),
-                ],
-              );
-            },
-          ),
+                    const SizedBox(height: 8.0),
+                    TextField(
+                      controller: locationController,
+                      decoration: const InputDecoration(
+                        labelText: 'Konum',
+                        prefixIcon: Icon(Icons.place_outlined),
+                      ),
+                    ),
+                    const SizedBox(height: 12.0),
+                    Row(
+                      children: [
+                        const Icon(Icons.event_outlined, size: 18),
+                        const SizedBox(width: 8),
+                        Text(
+                          '${selectedDate.day}.${selectedDate.month}.${selectedDate.year}',
+                        ),
+                        const Spacer(),
+                        TextButton.icon(
+                          onPressed: () async {
+                            final picked = await showDatePicker(
+                              context: ctx,
+                              initialDate: selectedDate,
+                              firstDate: DateTime(2020),
+                              lastDate: DateTime(2100),
+                            );
+                            if (picked != null) {
+                              setStateDialog(() {
+                                selectedDate = picked;
+                              });
+                            }
+                          },
+                          icon: const Icon(Icons.calendar_today_outlined, size: 18),
+                          label: const Text('Tarih seç'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(false),
+                  child: const Text('İptal'),
+                ),
+                FilledButton(
+                  onPressed: () {
+                    if (titleController.text.trim().isEmpty) return;
+                    Navigator.of(ctx).pop(true);
+                  },
+                  child: const Text('Oluştur'),
+                ),
+              ],
+            );
+          },
         );
       },
     );
@@ -155,7 +111,6 @@ class _CampListScreenState extends State<CampListScreen> {
       setState(() {
         _camps.add(newCamp);
       });
-      await _persist();
     }
   }
 
@@ -164,150 +119,189 @@ class _CampListScreenState extends State<CampListScreen> {
       MaterialPageRoute(
         builder: (_) => CampDetailScreen(
           camp: camp,
-          onUpdated: _handleCampUpdated,
-        ),
-      ),
-    );
-  }
-
-  void _handleCampUpdated(Camp updatedCamp) {
-    setState(() {
-      final index = _camps.indexWhere((element) => element.id == updatedCamp.id);
-      if (index != -1) {
-        _camps[index] = updatedCamp;
-      }
-    });
-    _persist();
-  }
-
-  Future<void> _backupCamps() async {
-    final payload = await _storage.buildBackupPayload(_camps);
-    final path = await _storage.saveBackupFile(payload);
-    await Clipboard.setData(ClipboardData(text: payload));
-
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Yedek alındı. Dosya: $path'),
-        action: SnackBarAction(
-          label: 'PANODA',
-          onPressed: () {
-            Clipboard.setData(ClipboardData(text: payload));
+          onUpdated: (updatedCamp) {
+            setState(() {
+              final index =
+              _camps.indexWhere((element) => element.id == updatedCamp.id);
+              if (index != -1) {
+                _camps[index] = updatedCamp;
+              }
+            });
           },
         ),
       ),
     );
   }
 
-  Future<void> _restoreCamps() async {
-    final controller = TextEditingController();
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          title: const Text('Yedekten geri yükle'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Scaffold(
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              theme.colorScheme.primary.withOpacity(0.08),
+              theme.colorScheme.surface,
+            ],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
             children: [
-              const Text('Yedek JSON bilgisini buraya yapıştır.'),
-              const SizedBox(height: 12),
-              TextField(
-                controller: controller,
-                maxLines: 6,
-                decoration: const InputDecoration(
-                  border: OutlineInputBorder(),
-                  hintText: '{ ... }',
+              _buildHeader(),
+              const SizedBox(height: 8),
+              Expanded(
+                child: _camps.isEmpty
+                    ? _buildEmptyState()
+                    : ListView.builder(
+                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 80),
+                  itemCount: _camps.length,
+                  itemBuilder: (ctx, index) {
+                    final camp = _camps[index];
+                    return _CampCard(
+                      camp: camp,
+                      onTap: () => _openCampDetail(camp),
+                    );
+                  },
                 ),
               ),
             ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(false),
-              child: const Text('İptal'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(ctx).pop(true),
-              child: const Text('Geri yükle'),
-            ),
-          ],
-        );
-      },
+        ),
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _addCampDialog,
+        icon: const Icon(Icons.add),
+        label: const Text('Yeni kamp'),
+      ),
     );
-
-    if (result == true) {
-      try {
-        final restored = await _storage.restoreFromPayload(controller.text);
-        setState(() {
-          _camps
-            ..clear()
-            ..addAll(restored);
-        });
-        await _persist();
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Yedek başarıyla geri yüklendi')),
-          );
-        }
-      } catch (e) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Geri yükleme başarısız: $e')),
-        );
-      }
-    }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final gradient = LinearGradient(
-      colors: [
-        Theme.of(context).colorScheme.primary.withOpacity(0.1),
-        Colors.white,
-      ],
-      begin: Alignment.topCenter,
-      end: Alignment.bottomCenter,
-    );
+  Widget _buildHeader() {
+    final now = DateTime.now();
+    final upcoming = _camps.where((c) => !c.date.isBefore(
+      DateTime(now.year, now.month, now.day),
+    ));
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Kamplarım'),
-        actions: [
-          IconButton(
-            tooltip: 'Yedek al',
-            onPressed: _backupCamps,
-            icon: const Icon(Icons.download_for_offline_outlined),
+    final int total = _camps.length;
+    final int upcomingCount = upcoming.length;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.forest_outlined, size: 24),
+              const SizedBox(width: 8),
+              Text(
+                'Kamplarım',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
           ),
-          IconButton(
-            tooltip: 'Geri yükle',
-            onPressed: _restoreCamps,
-            icon: const Icon(Icons.upload_file_outlined),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              _HeaderChip(
+                icon: Icons.list_alt_outlined,
+                label: '$total kamp',
+              ),
+              const SizedBox(width: 8),
+              _HeaderChip(
+                icon: Icons.upcoming_outlined,
+                label: upcomingCount == 0
+                    ? 'Yaklaşan kamp yok'
+                    : '$upcomingCount yaklaşan kamp',
+              ),
+            ],
           ),
         ],
       ),
-      body: Container(
-        decoration: BoxDecoration(gradient: gradient),
-        child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : _camps.isEmpty
-                ? const _EmptyState()
-                : ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
-                    itemCount: _camps.length,
-                    itemBuilder: (ctx, index) {
-                      final camp = _camps[index];
-                      final doneCount = camp.items.where((e) => e.isChecked).length;
-                      return _CampCard(
-                        camp: camp,
-                        doneCount: doneCount,
-                        onTap: () => _openCampDetail(camp),
-                      );
-                    },
-                  ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    final theme = Theme.of(context);
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.landscape_outlined,
+              size: 64,
+              color: theme.colorScheme.primary.withOpacity(0.4),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Henüz kamp eklemedin',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Sağ alttaki butondan ilk kampını oluştur.\nDefault checklist otomatik dolacak, sen sadece düzenleyeceksin.',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurface.withOpacity(0.7),
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _addCampDialog,
-        child: const Icon(Icons.add, size: 28),
+    );
+  }
+}
+
+class _HeaderChip extends StatelessWidget {
+  const _HeaderChip({
+    required this.icon,
+    required this.label,
+  });
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: theme.colorScheme.outline.withOpacity(0.2),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: theme.shadowColor.withOpacity(0.06),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: theme.textTheme.bodySmall,
+          ),
+        ],
       ),
     );
   }
@@ -316,64 +310,94 @@ class _CampListScreenState extends State<CampListScreen> {
 class _CampCard extends StatelessWidget {
   const _CampCard({
     required this.camp,
-    required this.doneCount,
     required this.onTap,
   });
 
   final Camp camp;
-  final int doneCount;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final progress = camp.items.isEmpty
-        ? 0.0
-        : (doneCount / camp.items.length.toDouble()).clamp(0, 1);
+    final theme = Theme.of(context);
+    final completed = camp.items.where((e) => e.isChecked).length;
+    final total = camp.items.length;
+    final double progress =
+    total == 0 ? 0.0 : completed / total.toDouble();
 
-    return GestureDetector(
-      onTap: onTap,
-      child: Card(
-        margin: const EdgeInsets.only(bottom: 14),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      camp.title,
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
+    final dateText =
+        '${camp.date.day}.${camp.date.month}.${camp.date.year}';
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6.0),
+      child: Material(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        elevation: 1,
+        shadowColor: theme.shadowColor.withOpacity(0.1),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: Row(
+              children: [
+                _AvatarCircle(letter: camp.title.isNotEmpty ? camp.title[0] : '?'),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        camp.title,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        children: [
+                          _InfoChip(
+                            icon: Icons.event_outlined,
+                            label: dateText,
+                          ),
+                          _InfoChip(
+                            icon: Icons.place_outlined,
+                            label: camp.location.isEmpty
+                                ? 'Konum yok'
+                                : camp.location,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(999),
+                        child: LinearProgressIndicator(
+                          value: progress.clamp(0.0, 1.0),
+                          minHeight: 6,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '$completed / $total madde tamamlandı',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color:
+                          theme.colorScheme.onSurface.withOpacity(0.7),
+                        ),
+                      ),
+                    ],
                   ),
-                  const Icon(Icons.chevron_right),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Row(
-                children: [
-                  _InfoChip(
-                    icon: Icons.place_outlined,
-                    label: camp.location.isEmpty ? 'Konum yok' : camp.location,
-                  ),
-                  const SizedBox(width: 8),
-                  _InfoChip(
-                    icon: Icons.calendar_today_outlined,
-                    label:
-                        '${camp.date.day}.${camp.date.month}.${camp.date.year}',
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              LinearProgressIndicator(
-                value: progress,
-                minHeight: 8,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              const SizedBox(height: 6),
-              Text('$doneCount / ${camp.items.length} madde tamamlandı'),
-            ],
+                ),
+                const SizedBox(width: 4),
+                Icon(
+                  Icons.chevron_right,
+                  color: theme.colorScheme.onSurface.withOpacity(0.4),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -382,59 +406,60 @@ class _CampCard extends StatelessWidget {
 }
 
 class _InfoChip extends StatelessWidget {
-  const _InfoChip({required this.icon, required this.label});
+  const _InfoChip({
+    required this.icon,
+    required this.label,
+  });
 
   final IconData icon;
   final String label;
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.grey.shade200),
+        color: theme.colorScheme.surfaceVariant.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(999),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 16),
-          const SizedBox(width: 6),
-          Text(label),
+          Icon(icon, size: 14),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: theme.textTheme.bodySmall,
+            overflow: TextOverflow.ellipsis,
+          ),
         ],
       ),
     );
   }
 }
 
-class _EmptyState extends StatelessWidget {
-  const _EmptyState();
+class _AvatarCircle extends StatelessWidget {
+  const _AvatarCircle({required this.letter});
+
+  final String letter;
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.terrain_outlined,
-              size: 64,
-              color: Theme.of(context).colorScheme.primary,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Henüz kamp eklemedin',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Sağ alttan + butonu ile kamp oluştur, yedek alıp paylaşmayı unutma.',
-              textAlign: TextAlign.center,
-            ),
-          ],
+    final theme = Theme.of(context);
+    return Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: theme.colorScheme.primary.withOpacity(0.15),
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        letter.toUpperCase(),
+        style: theme.textTheme.titleMedium?.copyWith(
+          fontWeight: FontWeight.bold,
+          color: theme.colorScheme.primary,
         ),
       ),
     );
