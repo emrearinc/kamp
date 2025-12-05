@@ -186,9 +186,10 @@ class _CampDetailScreenState extends State<CampDetailScreen> {
 
     final label = labelController.text.trim();
     final category = categoryController.text.trim();
-    final parsedQuantity =
-        double.tryParse(quantityController.text.replaceAll(',', '.')) ?? 1;
-    final quantity = parsedQuantity > 0 ? parsedQuantity : 1;
+    final double parsedQuantity =
+        double.tryParse(quantityController.text.replaceAll(',', '.')) ?? 1.0;
+
+    final double quantity = parsedQuantity > 0 ? parsedQuantity : 1.0;
 
     if (item == null) {
       final maxOrder = _camp.items.isEmpty
@@ -456,35 +457,37 @@ class _CampDetailScreenState extends State<CampDetailScreen> {
                     if (categories.isEmpty)
                       const Text('Henüz kategori yok')
                     else
-                      ListView.separated(
-                        shrinkWrap: true,
-                        itemCount: categories.length,
-                        separatorBuilder: (_, __) => const Divider(height: 1),
-                        itemBuilder: (ctx, index) {
-                          final category = categories[index];
-                          return ListTile(
-                            title: Text(category),
-                            trailing: Wrap(
-                              spacing: 4,
-                              children: [
-                                IconButton(
-                                  icon: const Icon(Icons.edit_outlined),
-                                  onPressed: () => renameCategory(category),
-                                  tooltip: 'Düzenle',
-                                ),
-                                IconButton(
-                                  icon: const Icon(Icons.delete_outline),
-                                  onPressed: () => deleteCategory(category),
-                                  tooltip: 'Sil',
-                                ),
-                              ],
+                      Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          for (var i = 0; i < categories.length; i++) ...[
+                            ListTile(
+                              title: Text(categories[i]),
+                              trailing: Wrap(
+                                spacing: 4,
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(Icons.edit_outlined),
+                                    onPressed: () => renameCategory(categories[i]),
+                                    tooltip: 'Düzenle',
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.delete_outline),
+                                    onPressed: () => deleteCategory(categories[i]),
+                                    tooltip: 'Sil',
+                                  ),
+                                ],
+                              ),
                             ),
-                          );
-                        },
+                            if (i != categories.length - 1)
+                              const Divider(height: 1),
+                          ],
+                        ],
                       ),
                   ],
                 ),
               ),
+
               actions: [
                 TextButton(
                   onPressed: () => Navigator.of(ctx).pop(),
