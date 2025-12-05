@@ -1,5 +1,8 @@
 // lib/screens/camp_detail_screen.dart
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../data/models.dart';
 
@@ -19,6 +22,7 @@ class CampDetailScreen extends StatefulWidget {
 
 class _CampDetailScreenState extends State<CampDetailScreen> {
   static const String _defaultCategory = '🎒 Diğer';
+  final ImagePicker _imagePicker = ImagePicker();
   late Camp _camp;
 
   @override
@@ -237,6 +241,131 @@ class _CampDetailScreenState extends State<CampDetailScreen> {
         items: _camp.items.where((e) => e.id != item.id).toList(),
       ),
     );
+  }
+
+  void _removePhoto(String path) {
+    _updateCamp(
+      _camp.copyWith(
+        photoPaths: _camp.photoPaths.where((p) => p != path).toList(),
+      ),
+    );
+  }
+
+  Future<void> _showAddPhotoOptions() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      builder: (ctx) {
+        return SafeArea(
+          child: Wrap(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.photo_library_outlined),
+                title: const Text('Galeriden seç'),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  _pickPhoto(ImageSource.gallery);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.camera_alt_outlined),
+                title: const Text('Kamerayla çek'),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  _pickPhoto(ImageSource.camera);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _pickPhoto(ImageSource source) async {
+    if (source == ImageSource.gallery) {
+      final images = await _imagePicker.pickMultiImage();
+      if (images.isEmpty) return;
+
+      final newPaths = images.map((e) => e.path).where((p) => p.isNotEmpty).toList();
+      if (newPaths.isEmpty) return;
+
+      _updateCamp(
+        _camp.copyWith(photoPaths: [..._camp.photoPaths, ...newPaths]),
+      );
+      return;
+    }
+
+    final image = await _imagePicker.pickImage(source: ImageSource.camera);
+    if (image == null || image.path.isEmpty) return;
+
+    _updateCamp(
+      _camp.copyWith(photoPaths: [..._camp.photoPaths, image.path]),
+    );
+  }
+
+  Future<void> _openPhotoViewer(String path) async {
+    final shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: const Text('Fotoğraf'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: InteractiveViewer(
+              child: Image.file(
+                File(path),
+                fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) => const SizedBox(
+                  height: 200,
+                  child: Center(child: Icon(Icons.broken_image_outlined)),
+                ),
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('Kapat'),
+            ),
+            FilledButton.icon(
+              icon: const Icon(Icons.delete_outline),
+              label: const Text('Sil'),
+              onPressed: () async {
+                final confirmed = await showDialog<bool>(
+                  context: context,
+                  builder: (confirmCtx) {
+                    return AlertDialog(
+                      title: const Text('Fotoğrafı sil'),
+                      content: const Text(
+                        'Bu fotoğrafı listeden kaldırmak istediğine emin misin?',
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.of(confirmCtx).pop(false),
+                          child: const Text('Vazgeç'),
+                        ),
+                        FilledButton(
+                          onPressed: () => Navigator.of(confirmCtx).pop(true),
+                          child: const Text('Sil'),
+                        ),
+                      ],
+                    );
+                  },
+                );
+
+                if (confirmed == true) {
+                  Navigator.of(ctx).pop(true);
+                }
+              },
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldDelete == true) {
+      _removePhoto(path);
+    }
   }
 
   String _formatQuantity(ChecklistItem item) {
@@ -529,6 +658,11 @@ class _CampDetailScreenState extends State<CampDetailScreen> {
             icon: const Icon(Icons.category_outlined),
             tooltip: 'Kategorileri yönet',
           ),
+          IconButton(
+            onPressed: _showAddPhotoOptions,
+            icon: const Icon(Icons.add_a_photo_outlined),
+            tooltip: 'Fotoğraf ekle',
+          ),
         ],
       ),
       body: Container(
@@ -540,6 +674,7 @@ class _CampDetailScreenState extends State<CampDetailScreen> {
               child: ListView(
                 padding: const EdgeInsets.only(bottom: 80),
                 children: [
+                  _buildPhotosSection(),
                   _buildParticipantsCard(),
                   ...grouped.entries.map((entry) {
                     final category = entry.key;
@@ -606,6 +741,76 @@ class _CampDetailScreenState extends State<CampDetailScreen> {
       floatingActionButton: FloatingActionButton(
         onPressed: _openItemEditor,
         child: const Icon(Icons.add),
+      ),
+    );
+  }
+
+  Widget _buildPhotosSection() {
+    final theme = Theme.of(context);
+    return Card(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      child: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.photo_library_outlined),
+                const SizedBox(width: 8),
+                Text(
+                  'Kamp fotoğrafları',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const Spacer(),
+                IconButton(
+                  onPressed: _showAddPhotoOptions,
+                  icon: const Icon(Icons.add_photo_alternate_outlined),
+                  tooltip: 'Fotoğraf ekle',
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            if (_camp.photoPaths.isEmpty)
+              Text(
+                'Henüz fotoğraf eklenmedi. Sağ üstten galeri veya kamerayla fotoğraf ekleyebilirsin.',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurface.withOpacity(0.6),
+                ),
+              )
+            else
+              SizedBox(
+                height: 140,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _camp.photoPaths.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 12),
+                  itemBuilder: (context, index) {
+                    final path = _camp.photoPaths[index];
+                    return GestureDetector(
+                      onTap: () => _openPhotoViewer(path),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: AspectRatio(
+                          aspectRatio: 1,
+                          child: Image.file(
+                            File(path),
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Container(
+                              color: theme.colorScheme.surfaceVariant,
+                              child: const Icon(Icons.broken_image_outlined),
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
