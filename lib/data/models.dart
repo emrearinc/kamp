@@ -5,6 +5,8 @@ class ChecklistItem {
   final String id;
   final String category;
   final String label;
+  final double quantity;
+  final QuantityUnit unit;
   bool isChecked;
   final int sortOrder;
 
@@ -12,6 +14,8 @@ class ChecklistItem {
     required this.id,
     required this.category,
     required this.label,
+    this.quantity = 1,
+    this.unit = QuantityUnit.piece,
     this.isChecked = false,
     required this.sortOrder,
   });
@@ -20,6 +24,8 @@ class ChecklistItem {
     String? id,
     String? category,
     String? label,
+    double? quantity,
+    QuantityUnit? unit,
     bool? isChecked,
     int? sortOrder,
   }) {
@@ -27,6 +33,8 @@ class ChecklistItem {
       id: id ?? this.id,
       category: category ?? this.category,
       label: label ?? this.label,
+      quantity: quantity ?? this.quantity,
+      unit: unit ?? this.unit,
       isChecked: isChecked ?? this.isChecked,
       sortOrder: sortOrder ?? this.sortOrder,
     );
@@ -37,6 +45,11 @@ class ChecklistItem {
       id: map['id'] as String,
       category: map['category'] as String,
       label: map['label'] as String,
+      quantity: (map['quantity'] as num?)?.toDouble() ?? 1,
+      unit: QuantityUnit.values.firstWhere(
+        (u) => u.name == map['unit'],
+        orElse: () => QuantityUnit.piece,
+      ),
       isChecked: map['isChecked'] as bool? ?? false,
       sortOrder: map['sortOrder'] as int? ?? 0,
     );
@@ -47,9 +60,37 @@ class ChecklistItem {
       'id': id,
       'category': category,
       'label': label,
+      'quantity': quantity,
+      'unit': unit.name,
       'isChecked': isChecked,
       'sortOrder': sortOrder,
     };
+  }
+}
+
+enum QuantityUnit { piece, litre, kg }
+
+extension QuantityUnitLabels on QuantityUnit {
+  String get label {
+    switch (this) {
+      case QuantityUnit.piece:
+        return 'Adet';
+      case QuantityUnit.litre:
+        return 'Litre';
+      case QuantityUnit.kg:
+        return 'Kilogram';
+    }
+  }
+
+  String get shortLabel {
+    switch (this) {
+      case QuantityUnit.piece:
+        return 'ad';
+      case QuantityUnit.litre:
+        return 'L';
+      case QuantityUnit.kg:
+        return 'kg';
+    }
   }
 }
 
@@ -62,6 +103,7 @@ class Camp {
   List<ChecklistItem> items;
   List<String> photoPaths;
   List<String> participants;
+  List<String> categories;
 
   Camp({
     required this.id,
@@ -72,6 +114,7 @@ class Camp {
     required this.items,
     required this.photoPaths,
     required this.participants,
+    required this.categories,
   });
 
   Camp copyWith({
@@ -83,6 +126,7 @@ class Camp {
     List<ChecklistItem>? items,
     List<String>? photoPaths,
     List<String>? participants,
+    List<String>? categories,
   }) {
     return Camp(
       id: id ?? this.id,
@@ -93,6 +137,7 @@ class Camp {
       items: items ?? this.items,
       photoPaths: photoPaths ?? this.photoPaths,
       participants: participants ?? this.participants,
+      categories: categories ?? this.categories,
     );
   }
 
@@ -114,6 +159,10 @@ class Camp {
               ?.map((e) => e as String)
               .toList() ??
           [],
+      categories: (map['categories'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList() ??
+          [],
     );
   }
 
@@ -127,6 +176,7 @@ class Camp {
       'items': items.map((e) => e.toMap()).toList(),
       'photoPaths': photoPaths,
       'participants': participants,
+      'categories': categories,
     };
   }
 

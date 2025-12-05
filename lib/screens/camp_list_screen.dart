@@ -98,15 +98,23 @@ class _CampListScreenState extends State<CampListScreen> {
     );
 
     if (result == true) {
+      final defaultItems = buildDefaultChecklist();
+      final defaultCategories = defaultItems
+          .map((e) => e.category)
+          .toSet()
+          .toList()
+        ..sort();
+
       final newCamp = Camp(
         id: _uuid.v4(),
         title: titleController.text.trim(),
         date: selectedDate,
         location: locationController.text.trim(),
         note: '',
-        items: buildDefaultChecklist(),
+        items: defaultItems,
         photoPaths: [],
         participants: [],
+        categories: defaultCategories,
       );
 
       setState(() {
