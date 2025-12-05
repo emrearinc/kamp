@@ -3,6 +3,7 @@ import 'package:uuid/uuid.dart';
 
 import '../data/models.dart';
 import '../data/default_checklist.dart';
+import '../data/storage.dart';
 import 'camp_detail_screen.dart';
 
 class CampListScreen extends StatefulWidget {
@@ -14,7 +15,48 @@ class CampListScreen extends StatefulWidget {
 
 class _CampListScreenState extends State<CampListScreen> {
   final _uuid = const Uuid();
+  final CampStorage _storage = CampStorage();
   final List<Camp> _camps = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCamps();
+  }
+
+  void _showSnack(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
+  Future<void> _loadCamps() async {
+    try {
+      final loaded = await _storage.loadCamps();
+      setState(() {
+        _camps
+          ..clear()
+          ..addAll(loaded);
+      });
+    } catch (e, stack) {
+      debugPrint('Kayıtlı kamplar yüklenemedi: $e');
+      debugPrintStack(stackTrace: stack);
+      _showSnack('Kayıtlı kamplar yüklenirken bir hata oluştu.');
+    }
+  }
+
+  Future<void> _saveCamps({String? successMessage}) async {
+    try {
+      await _storage.saveCamps(_camps);
+      if (successMessage != null) {
+        _showSnack(successMessage);
+      }
+    } catch (e, stack) {
+      debugPrint('Kamplar kaydedilemedi: $e');
+      debugPrintStack(stackTrace: stack);
+      _showSnack('Değişiklikler kaydedilirken bir hata oluştu.');
+    }
+  }
 
   Future<void> _addCampDialog() async {
     final titleController = TextEditingController();
@@ -120,6 +162,8 @@ class _CampListScreenState extends State<CampListScreen> {
       setState(() {
         _camps.add(newCamp);
       });
+
+      await _saveCamps(successMessage: 'Yeni kamp kaydedildi.');
     }
   }
 
@@ -136,6 +180,7 @@ class _CampListScreenState extends State<CampListScreen> {
                 _camps[index] = updatedCamp;
               }
             });
+            _saveCamps();
           },
         ),
       ),
@@ -171,9 +216,60 @@ class _CampListScreenState extends State<CampListScreen> {
                   itemCount: _camps.length,
                   itemBuilder: (ctx, index) {
                     final camp = _camps[index];
-                    return _CampCard(
-                      camp: camp,
-                      onTap: () => _openCampDetail(camp),
+                    return Dismissible(
+                      key: ValueKey(camp.id),
+                      direction: DismissDirection.endToStart,
+                      background: Container(
+                        alignment: Alignment.centerRight,
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .error
+                              .withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Icon(
+                          Icons.delete,
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                      ),
+                      confirmDismiss: (_) async {
+                        return await showDialog<bool>(
+                              context: context,
+                              builder: (dialogContext) => AlertDialog(
+                                title: const Text('Kampı sil'),
+                                content: Text(
+                                  '"${camp.title}" kampını silmek istediğine emin misin?',
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () =>
+                                        Navigator.of(dialogContext).pop(false),
+                                    child: const Text('İptal'),
+                                  ),
+                                  FilledButton(
+                                    onPressed: () =>
+                                        Navigator.of(dialogContext).pop(true),
+                                    child: const Text('Sil'),
+                                  ),
+                                ],
+                              ),
+                            ) ??
+                            false;
+                      },
+                      onDismissed: (_) async {
+                        setState(() {
+                          _camps.removeAt(index);
+                        });
+                        await _saveCamps(
+                          successMessage: 'Kamp silindi ve kaydedildi.',
+                        );
+                      },
+                      child: _CampCard(
+                        camp: camp,
+                        onTap: () => _openCampDetail(camp),
+                      ),
                     );
                   },
                 ),
