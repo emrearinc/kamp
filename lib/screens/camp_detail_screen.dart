@@ -1,5 +1,6 @@
 // lib/screens/camp_detail_screen.dart
 import 'package:flutter/material.dart';
+
 import '../data/models.dart';
 
 class CampDetailScreen extends StatefulWidget {
@@ -184,47 +185,81 @@ class _CampDetailScreenState extends State<CampDetailScreen> {
       grouped.putIfAbsent(item.category, () => []).add(item);
     }
 
+    final gradient = LinearGradient(
+      colors: [
+        Theme.of(context).colorScheme.primary.withOpacity(0.12),
+        Colors.white,
+      ],
+      begin: Alignment.topCenter,
+      end: Alignment.bottomCenter,
+    );
+
     return Scaffold(
       appBar: AppBar(
         title: Text(_camp.title),
       ),
-      body: Column(
-        children: [
-          _buildHeader(),
-          const Divider(height: 0),
-          Expanded(
-            child: ListView(
-              children: grouped.entries.map((entry) {
-                final category = entry.key;
-                final items = entry.value;
-                final doneCount =
-                    items.where((e) => e.isChecked).length;
+      body: Container(
+        decoration: BoxDecoration(gradient: gradient),
+        child: Column(
+          children: [
+            _buildHeader(),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.only(bottom: 80),
+                children: grouped.entries.map((entry) {
+                  final category = entry.key;
+                  final items = entry.value;
+                  final doneCount =
+                      items.where((e) => e.isChecked).length;
 
-                return ExpansionTile(
-                  title: Text(category),
-                  subtitle: Text('$doneCount / ${items.length} tamamlandı'),
-                  children: items.map((item) {
-                    return Dismissible(
-                      key: ValueKey(item.id),
-                      background: Container(
-                        alignment: Alignment.centerRight,
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: const Icon(Icons.delete),
+                  return Card(
+                    margin: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: ExpansionTile(
+                        tilePadding: EdgeInsets.zero,
+                        childrenPadding: const EdgeInsets.only(bottom: 8),
+                        title: Text(category),
+                        subtitle: Text('$doneCount / ${items.length} tamamlandı'),
+                        trailing: const Icon(Icons.expand_more),
+                        children: items.map((item) {
+                          return Dismissible(
+                            key: ValueKey(item.id),
+                            background: Container(
+                              alignment: Alignment.centerRight,
+                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .error
+                                    .withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Icon(
+                                Icons.delete,
+                                color: Theme.of(context).colorScheme.error,
+                              ),
+                            ),
+                            direction: DismissDirection.endToStart,
+                            onDismissed: (_) => _deleteItem(item),
+                            child: CheckboxListTile(
+                              value: item.isChecked,
+                              onChanged: (val) => _toggleItem(item, val),
+                              title: Text(item.label),
+                            ),
+                          );
+                        }).toList(),
                       ),
-                      direction: DismissDirection.endToStart,
-                      onDismissed: (_) => _deleteItem(item),
-                      child: CheckboxListTile(
-                        value: item.isChecked,
-                        onChanged: (val) => _toggleItem(item, val),
-                        title: Text(item.label),
-                      ),
-                    );
-                  }).toList(),
-                );
-              }).toList(),
+                    ),
+                  );
+                }).toList(),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _addItem,
@@ -234,8 +269,15 @@ class _CampDetailScreenState extends State<CampDetailScreen> {
   }
 
   Widget _buildHeader() {
-    return Padding(
-      padding: const EdgeInsets.all(12.0),
+    final progress = _camp.items.isEmpty
+        ? 0.0
+        : (_camp.items.where((e) => e.isChecked).length /
+                _camp.items.length.toDouble())
+            .clamp(0, 1);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -243,63 +285,86 @@ class _CampDetailScreenState extends State<CampDetailScreen> {
             '${_camp.date.day}.${_camp.date.month}.${_camp.date.year}',
             style: Theme.of(context).textTheme.bodyMedium,
           ),
-          const SizedBox(height: 4),
-          Row(
-            children: [
-              const Icon(Icons.place, size: 16),
-              const SizedBox(width: 4),
-              Expanded(
-                child: Text(
-                  _camp.location.isEmpty
-                      ? 'Konum belirtilmemiş'
-                      : _camp.location,
-                ),
-              ),
-            ],
-          ),
           const SizedBox(height: 8),
           Row(
             children: [
-              Expanded(
-                child: Text(
-                  _camp.note.isEmpty ? 'Not eklenmemiş' : _camp.note,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
+              _InfoPill(
+                icon: Icons.place_outlined,
+                label:
+                    _camp.location.isEmpty ? 'Konum belirtilmemiş' : _camp.location,
               ),
-              TextButton.icon(
-                onPressed: _editNote,
-                icon: const Icon(Icons.edit, size: 16),
-                label: const Text('Not'),
+              const SizedBox(width: 8),
+              _InfoPill(
+                icon: Icons.note_outlined,
+                label: _camp.note.isEmpty ? 'Not eklenmedi' : 'Not kaydedildi',
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              ..._camp.photoPaths.map(
-                    (p) => Container(
-                  width: 60,
-                  height: 60,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    border: Border.all(),
-                    borderRadius: BorderRadius.circular(8),
+          const SizedBox(height: 12),
+          Card(
+            margin: EdgeInsets.zero,
+            child: Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Tamamlanma durumu'),
+                        const SizedBox(height: 8),
+                        LinearProgressIndicator(
+                          value: progress,
+                          minHeight: 8,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          '${(_camp.items.where((e) => e.isChecked).length)} / ${_camp.items.length} madde',
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodyMedium
+                              ?.copyWith(fontWeight: FontWeight.w600),
+                        ),
+                      ],
+                    ),
                   ),
-                  child: const Text('Foto'),
-                ),
+                  IconButton(
+                    onPressed: _editNote,
+                    icon: const Icon(Icons.edit_note_outlined),
+                    tooltip: 'Not ekle/düzenle',
+                  ),
+                ],
               ),
-              OutlinedButton.icon(
-                onPressed: () {
-                  // TODO: image_picker ile foto ekleme
-                },
-                icon: const Icon(Icons.photo),
-                label: const Text('Foto ekle'),
-              ),
-            ],
+            ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InfoPill extends StatelessWidget {
+  const _InfoPill({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16),
+          const SizedBox(width: 6),
+          Text(label),
         ],
       ),
     );
